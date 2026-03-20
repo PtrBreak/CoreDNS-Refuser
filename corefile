@@ -1,0 +1,68 @@
+# 1. 专门针对 dynv6.net 和 ydns.eu 的处理块
+dynv6.net ydns.eu {
+    # 主解析服务器 (指向上游服务器)
+    forward . 127.0.0.1:65353
+
+    carbolicacid {
+        include 0.0.0.0/32
+        include ::/128
+        responses nxdomain
+    }
+
+    # 当这两个域名的主 DNS 返回 SERVFAIL 或 NXDOMAIN 时转发给其他 DNS
+    alternate SERVFAIL,NXDOMAIN . 9.9.9.10 1.1.1.1
+
+    cache 100 {
+        success 60
+        denial 0
+    }
+}
+
+# 2. 放行服务器自身域名查询的处理块
+localhost 0.in-addr.arpa 127.in-addr.arpa 255.in-addr.arpa fileserver-hf {
+    # 至少启用一个插件，使其成为“激活”的 authoritative zone
+    # 否则 CoreDNS 认为这是个空 zone，仍然会 fallback 到根 zone
+	local
+}
+
+# 3. 其他域名的通用处理块
+. {
+    # 2.1 Refuser 插件：第一道防线
+    # 放置在最前端，拦截黑名单内的所有请求
+    refuser {
+        mode blacklist
+        listfile cn-list.txt
+
+        decay_interval 30
+
+        # 启用正则表达式，并限制32个为上限
+        max_regex_rules 32
+        # 开启调试模式查看拦截细节
+        debug true
+        # 每天自动重载一次黑名单文件
+        reload 86400
+        # 缓存配置：限制 4K 条记录
+        cache_record_limit 4096
+    }
+
+    # 2.2 通用转发逻辑，不使用 alternate 以节省资源
+    forward . 127.0.0.1:65353
+
+    carbolicacid {
+        preset iana
+        responses nxdomain
+    }
+
+    # 数字是指缓存条目最大数量，默认9000
+    cache 9000 {
+        # success 600                   # 成功解析结果的最大 TTL（秒）
+        denial 0                        # 否定响应（NXDOMAIN / NODATA）的最大 TTL（秒）
+        prefetch 3                      # 当缓存命中次数达到 N 时，提前刷新缓存
+        # serve_stale [DURATION]        # 上游不可用时，继续使用过期缓存（时间，例如 30s）
+        # serve_stale_up_to DURATION    # 过期缓存最多可使用多久(时间，例如1h)
+    }
+
+    # prometheus :9153
+    log
+    errors
+}
