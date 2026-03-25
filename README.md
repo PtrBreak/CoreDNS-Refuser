@@ -1,4 +1,4 @@
-# **refuser v0.3.2 — CoreDNS Domain Refusal Plugin**
+# **Refuser v0.3.2 — CoreDNS Domain Refusal Plugin**
 
 `refuser` is a high‑performance and extensible CoreDNS plugin designed to **quickly refuse (or allow) specific domain queries**.  
 It is suitable for ad blocking, malicious domain filtering, enterprise DNS policies, and home network protection.
